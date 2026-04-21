@@ -1,47 +1,9 @@
-use serde::{Deserialize, Serialize};
-
 use crate::api::endpoints;
+use crate::api::types::{
+    MemberBalance, MemberId, MemberInfo, Product, Sale, SaleRequest, SaleResponse,
+};
+use colored::Colorize;
 use std::collections::HashMap;
-
-//{"balance": 0, "username": "x", "active": true, "name": "thomas eh", "signup_due_paid": true}
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MemberInfo {
-    pub balance: i32,
-    pub username: String,
-    pub active: bool,
-    pub name: String,
-    pub signup_due_paid: bool,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MemberBalance {
-    pub balance: i32,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MemberId {
-    pub member_id: i32,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Sale {
-    pub timestamp: String,
-    pub product: String,
-    pub price: i32,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Product {
-    pub name: String,
-    pub price: i32,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct SaleRequest {
-    pub member_id: i32,
-    pub buystring: String,
-    pub room: i32,
-}
 
 pub async fn get_member_id(
     api_url: &str,
@@ -58,7 +20,7 @@ pub async fn get_member_id(
 
 pub async fn get_member_balance(
     api_url: &str,
-    member_id: i32,
+    member_id: &i32,
 ) -> Result<i32, Box<dyn std::error::Error>> {
     let url: String = format!(
         "{}{}",
@@ -70,6 +32,7 @@ pub async fn get_member_balance(
     Ok(resp.balance)
 }
 
+#[allow(dead_code)]
 pub async fn get_member_info(
     api_url: &str,
     member_id: &i32,
@@ -83,6 +46,7 @@ pub async fn get_member_info(
     Ok(resp)
 }
 
+#[allow(dead_code)]
 pub async fn get_member_history(
     api_url: &str,
     member_id: &i32,
@@ -97,6 +61,7 @@ pub async fn get_member_history(
     Ok(resp)
 }
 
+#[allow(dead_code)]
 pub async fn get_named_products(
     api_url: &str,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
@@ -111,7 +76,7 @@ pub async fn get_named_products(
 pub async fn get_active_products(
     api_url: &str,
     room_id: i32,
-) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
+) -> Result<HashMap<String, Product>, Box<dyn std::error::Error>> {
     let url: String = format!(
         "{}{}",
         api_url,
@@ -119,7 +84,7 @@ pub async fn get_active_products(
     );
     let resp = reqwest::get(url)
         .await?
-        .json::<HashMap<String, i32>>()
+        .json::<HashMap<String, Product>>()
         .await?;
     Ok(resp)
 }
@@ -131,6 +96,68 @@ pub async fn post_sale(
     let url: String = format!("{}{}", api_url, endpoints::SALES_ENDPOINT);
     let client = reqwest::Client::new();
     let resp = client.post(url).json(&sale_request).send().await?;
+
+    match resp.status() {
+        reqwest::StatusCode::OK => {
+            println!("{}", "Sale posted successfully.".green());
+        }
+        reqwest::StatusCode::INTERNAL_SERVER_ERROR => {
+            eprintln!(
+                "Internal server error while posting sale. Possibly due to invalid buystring or other issues."
+            );
+            return Err("Internal server error".into());
+        }
+        _ => {
+            let text = resp.text().await?;
+            eprintln!("Error posting sale: {}", text);
+            return Err(text.into());
+        }
+    }
+
+    let json_resp = resp.json::<SaleResponse>().await?;
+
+    match json_resp.status {
+        200 => {
+            if let Some(values) = json_resp.values {
+                if values.is_ballmer_peaking {
+                    if let (Some(minutes), Some(seconds)) = (values.bp_minutes, values.bp_seconds) {
+                        println!(
+                            "Ballmer Peaking for {} minutes and {} seconds",
+                            minutes, seconds
+                        );
+                    } else {
+                        println!("Ballmer Peaking, but no time provided.");
+                    }
+                }
+                if values.caffeine > 0.0 {
+                    println!("Caffeine: {}mg", values.caffeine);
+                }
+                if values.promille > 0.0 {
+                    println!("Promille: {}‰", values.promille);
+                }
+                println!("Cost: {}", values.cost);
+                println!("Member balance: {}", values.member_balance);
+                if values.member_has_low_balance {
+                    println!("{}", "Warning: Low balance".red().on_yellow());
+                }
+            }
+        }
+        500 => {
+            eprintln!("Internal server error while posting sale.");
+            return Err("Internal server error".into());
+        }
+        403 => {
+            eprintln!(
+                "Forbidden: You do not have permission to post this sale. Possibly due to insufficient balance."
+            );
+            return Err("Forbidden".into());
+        }
+        _ => {
+            eprintln!("Error posting sale: {}", json_resp.msg);
+            return Err(json_resp.msg.into());
+        }
+    }
     // TODO: Handle response, check for errors, etc.
+
     Ok(())
 }

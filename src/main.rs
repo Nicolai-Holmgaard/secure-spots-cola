@@ -1,50 +1,51 @@
-use crate::api::client::{SaleRequest, get_member_id, get_member_info, post_sale};
+use crate::api::client::{get_active_products, get_member_balance, get_member_id, post_sale};
+use crate::api::types::SaleRequest;
 use clap::Parser;
-use serde::{Deserialize, Serialize};
 mod api;
-
-#[derive(Serialize, Deserialize)]
-struct SSCConfig {
-    username: String,
-    room: i32,
-    url: String,
-}
-
-impl ::std::default::Default for SSCConfig {
-    fn default() -> Self {
-        Self {
-            username: "".into(),
-            room: 10,
-            url: "http://stregsystem.fklub.dk".into(),
-        }
-    }
-}
-
-#[derive(Parser)]
-#[command(version, about, long_about = None)]
-struct Cli {
-    #[arg(short)]
-    username: Option<String>,
-    buystring: Vec<String>,
-}
+mod cli;
 
 #[tokio::main]
 async fn main() -> Result<(), confy::ConfyError> {
-    let cli = Cli::parse();
-    let cfg: SSCConfig = confy::load("secure-sports-cola", "config")?;
+    let cli = cli::CliOptions::parse();
+    let mut cfg: cli::SSCConfig = confy::load("secure-sports-cola", "config")?;
 
-    //println!("name: {:?}", cli.username);
-    //println!("buystring: {:?}", cli.buystring.join(" "));
-    //println!("url: {:?}", cfg.url);
-    let mut username = cli.username.unwrap_or(cfg.username);
+    let username = cli.username.unwrap_or(cfg.username.clone());
+    if cfg.username.is_empty() {
+        if username.is_empty() {
+            eprintln!(
+                "Username must be provided either through the --username argument or the config file."
+            );
+            std::process::exit(1);
+        }
+
+        cfg.username = username.clone();
+        confy::store("secure-sports-cola", "config", &cfg)?;
+    }
     let member_id = get_member_id(&cfg.url, &username).await.unwrap();
-    //println!("member_id: {member_id}");
-    //get_member_info(&cfg.url, &member_id).await;
+
+    if cli.balance {
+        let balance = get_member_balance(&cfg.url, &member_id).await.unwrap();
+        println!("Balance: {}", balance);
+        return Ok(());
+    }
+    if cli.list {
+        let products = get_active_products(&cfg.url, cfg.room).await.unwrap();
+        println!("Active products:");
+        for (id, product) in products {
+            println!(
+                "{:4} {:7}: {}",
+                id,
+                format!("({})", product.price),
+                product.name
+            );
+        }
+        return Ok(());
+    }
 
     post_sale(
         &cfg.url,
         SaleRequest {
-            member_id: member_id,
+            member_id,
             room: cfg.room,
             buystring: format!("{} {}", &username, cli.buystring.join(" ")),
         },
