@@ -10,3 +10,7 @@ tokio = { version = "1", features = ["full"] }
 confy = "2.0.0"
 serde = { version = "1.0.152", features = ["derive"] }
 colored = "3.1.1"
+
+[[bin]]
+name = "ssc"
+path = "src/main.rs"
