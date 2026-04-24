@@ -7,7 +7,7 @@ SSC is a command line interface for [stregsystemet](https://github.com/f-klubben
 To install SSC, you need to have Rust and Cargo installed on your system. You can then use Cargo to install SSC by running the following command in your terminal:
 
 ```bash
-cargo install --git https://github.com/Nicolai-Holmgaard/secure-spots-cola.git
+cargo install --git https://github.com/Nicolai-Holmgaard/secure-sports-cola.git
 ```
 
 ## Usage
