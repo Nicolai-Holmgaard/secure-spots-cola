@@ -3,7 +3,7 @@
 # See https://github.com/kolloch/crate2nix for more info.
 
 {
-  nixpkgs ? <nixpkgs>,
+  nixpkgs ? <nixpkgs-unstable>,
   pkgs ? import nixpkgs { config = { }; },
   fetchurl ? pkgs.fetchurl,
   lib ? pkgs.lib,

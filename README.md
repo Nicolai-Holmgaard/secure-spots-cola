@@ -4,10 +4,34 @@ SSC is a command line interface for [stregsystemet](https://github.com/f-klubben
 
 ## Installation
 
-To install SSC, you need to have Rust and Cargo installed on your system. You can then use Cargo to install SSC by running the following command in your terminal:
+### Cargo
+
+You can use Cargo to install SSC by running the following command:
 
 ```bash
 cargo install --git https://github.com/Nicolai-Holmgaard/secure-sports-cola.git
+```
+
+### Nix (flakes)
+
+To install SSC on NixOS via flakes add the following to your flake.nix:
+```nix
+inputs = {
+  nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+  ssc = {
+    url = "github:Nicolai-Holmgaard/secure-sports-cola";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+}
+```
+Then in your configuration.nix add it to `systemPackages`:
+```nix
+{ inputs, pkgs, ... }:
+{
+  environment.systemPackages = [
+    inputs.ssc.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  ]
+}
 ```
 
 ## Usage
