@@ -22,7 +22,7 @@ impl ::std::default::Default for SSCConfig {
 #[command(version, about="CLI to secure a sports cola", long_about = None)]
 pub struct CliOptions {
     /// The username to use for the purchase. If not provided, it will be read from the config file.
-    #[arg(short)]
+    #[arg(short, long)]
     pub username: Option<String>,
     /// List the active products in the room.
     #[arg(short, long)]
